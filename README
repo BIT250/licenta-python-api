@@ -1,0 +1,7 @@
+install python 11 and pip
+install conda
+
+create conda environment
+pip install -r requirements.txt
+
+run app.py to run the server

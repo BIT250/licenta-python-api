@@ -40,4 +40,4 @@ class DiabetesAI:
 
         # Predict using the trained model
         prediction = self.model.predict(input_scaled_df)[0]
-        return "Diabetic" if prediction == 1 else "Non-Diabetic"
+        return True if prediction == 1 else False

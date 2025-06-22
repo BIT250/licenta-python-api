@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from ai_models.diabetes_ai import DiabetesAI
 from extensions import db
 from helpers import calculate_age_from_cnp
@@ -54,4 +54,29 @@ def predict_diabetes_for_user(user_id):
     return jsonify({
         "input_data": input_data,
         "prediction": prediction_result
+    })
+
+
+@ai_routes.route('/ai/predict_diabetes', methods=['POST'])
+def predict_diabetes():
+
+    body = request.get_json()
+
+    ai_input_data = {
+        "Pregnancies": body.get("pregnancies"),
+        "Glucose": body.get("glucose"),
+        "BloodPressure": body.get("blood_pressure"),
+        "SkinThickness": body.get("skin_thickness"),
+        "Insulin": body.get("insulin"),
+        "BMI": body.get("bmi"),
+        "DiabetesPedigreeFunction": body.get("diabetes_pedigree_function"),
+        "Age": calculate_age_from_cnp(body.get("cnp"))
+    }
+
+    prediction_result = diabetes_ai.predict_outcome(ai_input_data)
+
+    return jsonify({
+        "input_data": ai_input_data,
+        "prediction": prediction_result,
+        "model": "diabetes_model"
     })

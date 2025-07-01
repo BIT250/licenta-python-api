@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from ai_models.diabetes_ai import DiabetesAI
+from ai_models.heart_disease_ai import HeartDiseaseAI
 from extensions import db
 from helpers import calculate_age_from_cnp
 from sqlalchemy import text
@@ -7,6 +8,8 @@ from sqlalchemy import text
 ai_routes = Blueprint('ai', __name__)
 diabetes_ai = DiabetesAI()
 diabetes_ai.load_model()
+heart_ai = HeartDiseaseAI()
+heart_ai.load_model()
 
 
 @ai_routes.route('/ai/predict_diabetes_for_user/<int:user_id>', methods=['GET'])
@@ -79,4 +82,35 @@ def predict_diabetes():
         "input_data": ai_input_data,
         "prediction": prediction_result,
         "model": "diabetes_model"
+    })
+
+
+@ai_routes.route('/ai/predict_heart_disease', methods=['POST'])
+def predict_heart_disease():
+    body = request.get_json()
+
+    ai_input_data = {
+        "age": body.get("age"),
+        "sex": body.get("sex"),
+        "cp": body.get("cp"),
+        "trestbps": body.get("trestbps"),
+        "chol": body.get("chol"),
+        "fbs": body.get("fbs"),
+        "restecg": body.get("restecg"),
+        "thalach": body.get("thalach"),
+        "exang": body.get("exang"),
+        "oldpeak": body.get("oldpeak"),
+        "slope": body.get("slope"),
+        "ca": body.get("ca"),
+        "thal": body.get("thal")
+    }
+
+    prediction_result = heart_ai.predict_outcome(ai_input_data)
+
+    # TODO: Save prediction_result in the database linked to the patient
+
+    return jsonify({
+        "input_data": ai_input_data,
+        "prediction": prediction_result,
+        "model": "heart_disease_model"
     })

@@ -6,3 +6,6 @@ flask_sqlalchemy
 tabpfn
 sqlalchemy~=2.0.38
 pandas~=2.2.3
+xgboost
+flasgger
+lightgbm

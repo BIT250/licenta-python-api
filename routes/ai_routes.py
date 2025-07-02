@@ -12,57 +12,69 @@ heart_ai = HeartDiseaseAI()
 heart_ai.load_model()
 
 
-@ai_routes.route('/ai/predict_diabetes_for_user/<int:user_id>', methods=['GET'])
-def predict_diabetes_for_user(user_id):
-    """
-    1. Fetch latest results (order_number=1) for each parameter from 'pacient_results'.
-    2. Fetch CNP & pregnancies from 'Personal_Data'.
-    3. Build the input dict and call the AI model.
-    4. Return the prediction as JSON.
-    """
-
-    sql_params = text("""
-        SELECT param_name, value
-        FROM pacient_results
-        WHERE user_id = :uid
-          AND order_number = 1
-    """)
-    rows = db.session.execute(sql_params, {"uid": user_id}).fetchall()
-
-    input_data = {}
-    for row in rows:
-        input_data[row.param_name] = float(row.value)
-
-    sql_pd = text("""
-        SELECT "cnp", "pregnancies"
-        FROM "Personal_Data"
-        WHERE "userId" = :uid
-        LIMIT 1
-    """)
-    pd_row = db.session.execute(sql_pd, {"uid": user_id}).fetchone()
-    if pd_row:
-        cnp = pd_row.cnp
-        pregnancies = pd_row.pregnancies
-        input_data["Pregnancies"] = pregnancies if pregnancies is not None else 0
-        input_data["Age"] = calculate_age_from_cnp(cnp) if cnp else 0
-    else:
-        # default if no personal data found
-        input_data["Pregnancies"] = 0
-        input_data["Age"] = 0
-
-    # --- 3) Call the AI model ---
-    prediction_result = diabetes_ai.predict_outcome(input_data)
-
-    # --- 4) Return JSON ---
-    return jsonify({
-        "input_data": input_data,
-        "prediction": prediction_result
-    })
-
-
 @ai_routes.route('/ai/predict_diabetes', methods=['POST'])
 def predict_diabetes():
-
+    """
+    Predict diabetes risk from patient data using multiple AI models.
+    ---
+    tags:
+      - AI
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - pregnancies
+            - glucose
+            - blood_pressure
+          properties:
+            pregnancies:
+              type: integer
+              description: Numărul de sarcini anterioare
+            glucose:
+              type: number
+              description: Concentrația plasmatică de glucoză la 2 ore
+            blood_pressure:
+              type: number
+              description: Tensiunea arterială diastolică (mmHg)
+            skin_thickness:
+              type: number
+              description: Grosimea pliului cutanat tricpeps (mm)
+            insulin:
+              type: number
+              description: Nivelul insulinei serice la 2 ore (µU/ml)
+            bmi:
+              type: number
+              description: Indicele de masă corporală (kg/m²)
+            diabetes_pedigree_function:
+              type: number
+              description: Funcția pedigree pentru diabet (indicator genetic)
+            age:
+              type: number
+              description: Vârsta pacientului (ani)
+    responses:
+      200:
+        description: Predicții pentru fiecare model de clasificare
+        schema:
+          type: object
+          properties:
+            tabpfn:
+              type: integer
+              enum: [0, 1]
+              description: Predicție TabPFN (0 = fără diabet, 1 = diabet)
+            xgb:
+              type: integer
+              enum: [0, 1]
+              description: Predicție XGBoost (0 = fără diabet, 1 = diabet)
+            lgb:
+              type: integer
+              enum: [0, 1]
+              description: Predicție LightGBM (0 = fără diabet, 1 = diabet)
+    """
     body = request.get_json()
 
     ai_input_data = {
@@ -73,20 +85,104 @@ def predict_diabetes():
         "Insulin": body.get("insulin"),
         "BMI": body.get("bmi"),
         "DiabetesPedigreeFunction": body.get("diabetes_pedigree_function"),
-        "Age": calculate_age_from_cnp(body.get("cnp"))
+        "Age": body.get("age")
     }
 
     prediction_result = diabetes_ai.predict_outcome(ai_input_data)
 
-    return jsonify({
-        "input_data": ai_input_data,
-        "prediction": prediction_result,
-        "model": "diabetes_model"
-    })
+    return jsonify(prediction_result)
 
 
 @ai_routes.route('/ai/predict_heart_disease', methods=['POST'])
 def predict_heart_disease():
+    """
+    Predict heart disease risk based on clinical parameters.
+    ---
+    tags:
+      - AI
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - age
+            - sex
+            - cp
+            - trestbps
+            - chol
+            - fbs
+            - restecg
+            - thalach
+            - exang
+            - oldpeak
+            - slope
+            - ca
+            - thal
+          properties:
+            age:
+              type: integer
+              description: Vârsta pacientului (ani)
+            sex:
+              type: integer
+              description: Gen (1 = masculin, 0 = feminin)
+            cp:
+              type: integer
+              description: Tipul durerii toracice (1–4)
+            trestbps:
+              type: integer
+              description: Tensiunea arterială în repaus (mmHg)
+            chol:
+              type: integer
+              description: Colesterol seric total (mg/dl)
+            fbs:
+              type: integer
+              description: Glicemie pe nemâncate >120 mg/dl (1 = da, 0 = nu)
+            restecg:
+              type: integer
+              description: Rezultate ECG în repaus (0 = normal, 1 = anomalii ST-T, 2 = hipertrofie ventriculară)
+            thalach:
+              type: integer
+              description: Frecvența cardiacă maximă atinsă (bpm)
+            exang:
+              type: integer
+              description: Angină indusă de efort (1 = da, 0 = nu)
+            oldpeak:
+              type: number
+              format: float
+              description: Depresie ST indusă de efort relativ la repaus (mm)
+            slope:
+              type: integer
+              description: Panta segmentului ST în efort (1 = ascendentă, 2 = plată, 3 = descendentă)
+            ca:
+              type: integer
+              description: Numărul de vase principale colorate prin angiografie (0–3)
+            thal:
+              type: integer
+              description: Tipul thalassemiei (1 = normal, 2 = fix, 3 = reversibil)
+    responses:
+      200:
+        description: Predicții pentru fiecare model de clasificare
+        schema:
+          type: object
+          properties:
+            tabpfn:
+              type: integer
+              enum: [0, 1]
+              description: Predicție TabPFN (0 = fără boală, 1 = boală)
+            xgb:
+              type: integer
+              enum: [0, 1]
+              description: Predicție XGBoost (0 = fără boală, 1 = boală)
+            lgb:
+              type: integer
+              enum: [0, 1]
+              description: Predicție LightGBM (0 = fără boală, 1 = boală)
+    """
+
     body = request.get_json()
 
     ai_input_data = {
@@ -107,10 +203,4 @@ def predict_heart_disease():
 
     prediction_result = heart_ai.predict_outcome(ai_input_data)
 
-    # TODO: Save prediction_result in the database linked to the patient
-
-    return jsonify({
-        "input_data": ai_input_data,
-        "prediction": prediction_result,
-        "model": "heart_disease_model"
-    })
+    return jsonify(prediction_result)

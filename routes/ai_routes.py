@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from ai_models.diabetes_ai import DiabetesAI
 from ai_models.heart_disease_ai import HeartDiseaseAI
-from extensions import db
 from helpers import calculate_age_from_cnp
 from sqlalchemy import text
 

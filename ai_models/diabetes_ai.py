@@ -6,6 +6,10 @@ warnings.filterwarnings(
     "ignore",
     message=r".*If you are loading a serialized model \(like pickle in Python.*"
 )
+warnings.filterwarnings(
+    "ignore",
+    message="Could not find the number of physical cores for the following reason"
+)
 
 paths = {
     "tabpfn_model": "ai_models/resources/diabetes_tabpfn_model.joblib",

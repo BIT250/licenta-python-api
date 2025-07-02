@@ -1,13 +1,11 @@
 from flask import Flask, render_template
 from config import Config
-from extensions import db
 from routes.db_connection_routes import main_db_routes
 from flasgger import Swagger
 from routes.ai_routes import ai_routes
 
 app = Flask(__name__)
 app.config.from_object(Config)
-db.init_app(app)
 
 app.register_blueprint(main_db_routes)
 app.register_blueprint(ai_routes)

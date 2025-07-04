@@ -73,3 +73,8 @@ def calculate_pedigree_function(family_history):
 
 	pedigree_function = (family_history - 1) * (1.5 / 4)
 	return round(pedigree_function, 2)
+
+	# Helper function to convert risk to numeric value
+def risk_to_numeric(risk):
+	return {"low": 1, "medium": 2, "high": 3}.get(risk, 0)
+

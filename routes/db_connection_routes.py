@@ -1,12 +1,61 @@
 from flask import Blueprint, jsonify, request, make_response
 
 from extensions import get_db
+from helpers import risk_to_numeric
 
 main_db_routes = Blueprint('main_db_routes', __name__)
 
 
 @main_db_routes.route("/db/personal_data", methods=["GET"])
 def get_personal_data():
+    """
+    Obține datele personale ale utilizatorului (email și profil).
+    ---
+    tags:
+      - Database
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        description: Token de sesiune de la autentificare
+    responses:
+      200:
+        description: Datele personale au fost recuperate cu succes
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              description: Adresa de email a utilizatorului
+            name:
+              type: string
+              description: Numele complet al utilizatorului
+            birth_date:
+              type: string
+              format: date
+              description: Data nașterii utilizatorului
+            sex:
+              type: string
+              description: Genul utilizatorului
+            height:
+              type: number
+              description: Înălțimea utilizatorului în cm
+            weight:
+              type: number
+              description: Greutatea utilizatorului în kg
+            phone:
+              type: string
+              description: Număr de telefon al utilizatorului
+      401:
+        description: Token de sesiune lipsă sau invalid
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Mesaj de eroare
+    """
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Session token missing"}), 401
@@ -32,6 +81,70 @@ def get_personal_data():
 
 @main_db_routes.route("/db/personal_data", methods=["PUT"])
 def update_personal_data():
+    """
+    Actualizează informațiile de profil ale utilizatorului.
+    ---
+    tags:
+      - Database
+    consumes:
+      - application/json
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        description: Token de sesiune de la autentificare
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Numele complet al utilizatorului
+            birth_date:
+              type: string
+              format: date
+              description: Data nașterii utilizatorului
+            sex:
+              type: string
+              description: Genul utilizatorului
+            height:
+              type: number
+              description: Înălțimea utilizatorului în cm
+            weight:
+              type: number
+              description: Greutatea utilizatorului în kg
+            phone:
+              type: string
+              description: Număr de telefon al utilizatorului
+    responses:
+      200:
+        description: Informațiile personale au fost actualizate cu succes
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              description: Mesaj de succes
+      400:
+        description: Nu au fost furnizate date
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Mesaj de eroare
+      401:
+        description: Token de sesiune lipsă sau invalid
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Mesaj de eroare
+    """
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Session token missing"}), 401
@@ -67,6 +180,58 @@ def update_personal_data():
 
 @main_db_routes.route("/db/prediction_history", methods=["GET"])
 def get_prediction_history():
+    """
+    Obține istoricul predicțiilor de diabet și boli de inimă pentru utilizator.
+    ---
+    tags:
+      - Database
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        description: Token de sesiune de la autentificare
+    responses:
+      200:
+        description: Istoricul predicțiilor a fost recuperat cu succes
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              date_of_prediction:
+                type: string
+                format: date
+                description: Data predicției
+              type:
+                type: string
+                enum: ["Diabet", "Afecțiuni cardiace"]
+                description: Tipul predicției
+              risk:
+                type: string
+                enum: ["low", "medium", "high"]
+                description: Nivelul de risc
+              tabpfn_response:
+                type: integer
+                enum: [0, 1]
+                description: Rezultat model TabPFN
+              xgb_response:
+                type: integer
+                enum: [0, 1]
+                description: Rezultat model XGBoost
+              lgbm_response:
+                type: integer
+                enum: [0, 1]
+                description: Rezultat model LightGBM
+      401:
+        description: Token de sesiune lipsă sau invalid
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Mesaj de eroare
+    """
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Session token missing"}), 401
@@ -112,90 +277,160 @@ def get_prediction_history():
 
 @main_db_routes.route("/db/analytics_data", methods=["GET"])
 def get_analytics_data():
-	token = request.headers.get("Authorization")
-	if not token:
-		return jsonify({"error": "Session token missing"}), 401
+    """
+    Obține date de analiză: distribuție de risc, tendințe lunare și ultimele evaluări.
+    ---
+    tags:
+      - Database
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        description: Token de sesiune de la autentificare
+    responses:
+      200:
+        description: Datele de analiză au fost recuperate cu succes
+        schema:
+          type: object
+          properties:
+            riskDistribution:
+              type: array
+              items:
+                type: object
+                properties:
+                  risk:
+                    type: string
+                    enum: ["Low Risk", "Medium Risk", "High Risk"]
+                    description: Categorie de nivel de risc
+                  diabetes:
+                    type: integer
+                    description: Număr de predicții diabet în categorie
+                  heart:
+                    type: integer
+                    description: Număr de predicții boli de inimă în categorie
+                  fill:
+                    type: string
+                    description: Cod de culoare pentru grafic
+            monthlyTrend:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    format: date
+                    description: Lună în format YYYY-MM
+                  diabetes:
+                    type: integer
+                    nullable: true
+                    description: Nivel numeric risc diabet (1=low,2=medium,3=high) sau null
+                  heart:
+                    type: integer
+                    nullable: true
+                    description: Nivel numeric risc inimă (1=low,2=medium,3=high) sau null
+            latestAssessments:
+              type: object
+              properties:
+                diabetes:
+                  type: string
+                  nullable: true
+                  enum: ["low", "medium", "high"]
+                  description: Ultima evaluare risc diabet sau null
+                heart:
+                  type: string
+                  nullable: true
+                  enum: ["low", "medium", "high"]
+                  description: Ultima evaluare risc inimă sau null
+      401:
+        description: Token de sesiune lipsă sau invalid
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Mesaj de eroare
+    """
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Session token missing"}), 401
 
-	db = get_db()
-	user = db.execute("SELECT id FROM users WHERE session = ?", (token,)).fetchone()
-	if not user:
-		return jsonify({"error": "Invalid session token"}), 401
+    db = get_db()
+    user = db.execute("SELECT id FROM users WHERE session = ?", (token,)).fetchone()
+    if not user:
+        return jsonify({"error": "Invalid session token"}), 401
 
-	user_id = user["id"]
+    user_id = user["id"]
 
-	# Risk Distribution
-	risk_distribution = {
-		"low": {"diabetes": 0, "heart": 0},
-		"medium": {"diabetes": 0, "heart": 0},
-		"high": {"diabetes": 0, "heart": 0}
-	}
+    # Risk Distribution
+    risk_distribution = {
+        "low": {"diabetes": 0, "heart": 0},
+        "medium": {"diabetes": 0, "heart": 0},
+        "high": {"diabetes": 0, "heart": 0}
+    }
 
-	diabetes_risks = db.execute("""
+    diabetes_risks = db.execute("""
         SELECT risk, COUNT(*) as count
         FROM diabetes_predictions
         WHERE user_id = ?
         GROUP BY risk
     """, (user_id,)).fetchall()
 
-	for row in diabetes_risks:
-		risk_distribution[row["risk"]]["diabetes"] = row["count"]
+    for row in diabetes_risks:
+        risk_distribution[row["risk"]]["diabetes"] = row["count"]
 
-	heart_risks = db.execute("""
+    heart_risks = db.execute("""
         SELECT risk, COUNT(*) as count
         FROM cardiology_predictions
         WHERE user_id = ?
         GROUP BY risk
     """, (user_id,)).fetchall()
 
-	for row in heart_risks:
-		risk_distribution[row["risk"]]["heart"] = row["count"]
+    for row in heart_risks:
+        risk_distribution[row["risk"]]["heart"] = row["count"]
 
-	# Monthly Trends - Fixed Logic
-	monthly_diabetes = db.execute("""
+    # Monthly Trends - Fixed Logic
+    monthly_diabetes = db.execute("""
         SELECT strftime('%Y-%m', date_of_prediction) as month, risk
         FROM diabetes_predictions
         WHERE user_id = ?
         ORDER BY date_of_prediction DESC
     """, (user_id,)).fetchall()
 
-	monthly_heart = db.execute("""
+    monthly_heart = db.execute("""
         SELECT strftime('%Y-%m', date_of_prediction) as month, risk
         FROM cardiology_predictions
         WHERE user_id = ?
         ORDER BY date_of_prediction DESC
     """, (user_id,)).fetchall()
 
-	# Helper function to convert risk to numeric value
-	def risk_to_numeric(risk):
-		return {"low": 1, "medium": 2, "high": 3}.get(risk, 0)
+    trend_data = {}
 
-	trend_data = {}
+    # Process diabetes data
+    for row in monthly_diabetes:
+        month = row["month"]
+        if month not in trend_data:
+            trend_data[month] = {"diabetes": None, "heart": None}
+        trend_data[month]["diabetes"] = risk_to_numeric(row["risk"])
 
-	# Process diabetes data
-	for row in monthly_diabetes:
-		month = row["month"]
-		if month not in trend_data:
-			trend_data[month] = {"diabetes": None, "heart": None}
-		trend_data[month]["diabetes"] = risk_to_numeric(row["risk"])
+    # Process heart data
+    for row in monthly_heart:
+        month = row["month"]
+        if month not in trend_data:
+            trend_data[month] = {"diabetes": None, "heart": None}
+        trend_data[month]["heart"] = risk_to_numeric(row["risk"])
 
-	# Process heart data
-	for row in monthly_heart:
-		month = row["month"]
-		if month not in trend_data:
-			trend_data[month] = {"diabetes": None, "heart": None}
-		trend_data[month]["heart"] = risk_to_numeric(row["risk"])
+    # Sort months chronologically and create monthly trend list
+    monthly_trend = []
+    for month in sorted(trend_data.keys()):
+        monthly_trend.append({
+            "month": month,
+            "diabetes": trend_data[month]["diabetes"],
+            "heart": trend_data[month]["heart"]
+        })
 
-	# Sort months chronologically and create monthly trend list
-	monthly_trend = []
-	for month in sorted(trend_data.keys()):
-		monthly_trend.append({
-			"month": month,
-			"diabetes": trend_data[month]["diabetes"],
-			"heart": trend_data[month]["heart"]
-		})
-
-	# Latest Assessments
-	latest_diabetes = db.execute("""
+    # Latest Assessments
+    latest_diabetes = db.execute("""
         SELECT risk
         FROM diabetes_predictions
         WHERE user_id = ?
@@ -203,7 +438,7 @@ def get_analytics_data():
         LIMIT 1
     """, (user_id,)).fetchone()
 
-	latest_heart = db.execute("""
+    latest_heart = db.execute("""
         SELECT risk
         FROM cardiology_predictions
         WHERE user_id = ?
@@ -211,20 +446,20 @@ def get_analytics_data():
         LIMIT 1
     """, (user_id,)).fetchone()
 
-	latest_assessments = {
-		"diabetes": latest_diabetes["risk"] if latest_diabetes else None,
-		"heart": latest_heart["risk"] if latest_heart else None
-	}
+    latest_assessments = {
+        "diabetes": latest_diabetes["risk"] if latest_diabetes else None,
+        "heart": latest_heart["risk"] if latest_heart else None
+    }
 
-	# Combine results
-	analytics_data = {
-		"riskDistribution": [
-			{"risk": "Low Risk", "diabetes": risk_distribution["low"]["diabetes"], "heart": risk_distribution["low"]["heart"], "fill": "#22c55e"},
-			{"risk": "Medium Risk", "diabetes": risk_distribution["medium"]["diabetes"], "heart": risk_distribution["medium"]["heart"], "fill": "#f59e0b"},
-			{"risk": "High Risk", "diabetes": risk_distribution["high"]["diabetes"], "heart": risk_distribution["high"]["heart"], "fill": "#ef4444"}
-		],
-		"monthlyTrend": monthly_trend,
-		"latestAssessments": latest_assessments
-	}
+    # Combine results
+    analytics_data = {
+        "riskDistribution": [
+            {"risk": "Low Risk", "diabetes": risk_distribution["low"]["diabetes"], "heart": risk_distribution["low"]["heart"], "fill": "#22c55e"},
+            {"risk": "Medium Risk", "diabetes": risk_distribution["medium"]["diabetes"], "heart": risk_distribution["medium"]["heart"], "fill": "#f59e0b"},
+            {"risk": "High Risk", "diabetes": risk_distribution["high"]["diabetes"], "heart": risk_distribution["high"]["heart"], "fill": "#ef4444"}
+        ],
+        "monthlyTrend": monthly_trend,
+        "latestAssessments": latest_assessments
+    }
 
-	return jsonify(analytics_data), 200
+    return jsonify(analytics_data), 200

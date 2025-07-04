@@ -13,13 +13,16 @@ class Config:
             }
         ],
         "swagger_ui": True,
-        "specs_route": "/apidocs/",
+        "specs_route": "/",
+        "swagger_ui_config": {
+            "lang": "ro"  # Set Swagger UI language to Romanian
+        }
     }
 
     SWAGGER_TEMPLATE = {
         "info": {
-            "title": "Documentatie API",  # ← your API name
-            "description": "Diabetes & Heart Disease AI endpoints",
+            "title": "Documentație API",  # API name in Romanian
+            "description": "Rute API pentru predicții de Diabet și Afecțiuni Caediace",  # Description in Romanian
             "version": "1.0.0",
         },
 

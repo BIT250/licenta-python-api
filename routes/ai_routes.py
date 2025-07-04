@@ -17,7 +17,7 @@ heart_ai.load_model()
 @ai_routes.route('/ai/predict_diabetes', methods=['POST'])
 def predict_diabetes():
     """
-    Predict diabetes risk for a logged-in user and record the prediction.
+    Prezice riscul de diabet pentru un utilizator autentificat și înregistrează predicția.
     ---
     tags:
       - AI
@@ -28,7 +28,7 @@ def predict_diabetes():
         name: Authorization
         required: true
         type: string
-        description: Session token from login
+        description: Token de sesiune de la autentificare
       - in: body
         name: body
         required: true
@@ -51,7 +51,7 @@ def predict_diabetes():
               description: Tensiunea arterială diastolică (mmHg)
             skin_thickness:
               type: number
-              description: Grosimea pliului cutanat tricpeps (mm)
+              description: Grosimea pliului cutanat triceps (mm)
             insulin:
               type: number
               description: Nivelul insulinei serice la 2 ore (µU/ml)
@@ -67,7 +67,7 @@ def predict_diabetes():
             test_date:
               type: string
               format: date
-              description: Data la care se face predicția
+              description: Data efectuării predicției
     responses:
       200:
         description: Predicții pentru fiecare model de clasificare
@@ -77,15 +77,15 @@ def predict_diabetes():
             tabpfn:
               type: integer
               enum: [0, 1]
-              description: Predicție TabPFN (0 = fără diabet, 1 = diabet)
+              description: Rezultatul modelului TabPFN (0 = fără diabet, 1 = diabet)
             xgb:
               type: integer
               enum: [0, 1]
-              description: Predicție XGBoost (0 = fără diabet, 1 = diabet)
+              description: Rezultatul modelului XGBoost (0 = fără diabet, 1 = diabet)
             lgb:
               type: integer
               enum: [0, 1]
-              description: Predicție LightGBM (0 = fără diabet, 1 = diabet)
+              description: Rezultatul modelului LightGBM (0 = fără diabet, 1 = diabet)
     """
     # 1) session check
     token = request.headers.get('Authorization')
@@ -152,7 +152,7 @@ def predict_diabetes():
 @ai_routes.route('/ai/predict_heart_disease', methods=['POST'])
 def predict_heart_disease():
     """
-    Predict heart disease risk for a logged-in user and record the prediction.
+    Prezice riscul de boli de inimă pentru un utilizator autentificat și înregistrează predicția.
     ---
     tags:
       - AI
@@ -163,7 +163,7 @@ def predict_heart_disease():
         name: Authorization
         required: true
         type: string
-        description: Session token from login
+        description: Token de sesiune de la autentificare
       - in: body
         name: body
         required: true
@@ -205,7 +205,7 @@ def predict_heart_disease():
               description: Glicemie pe nemâncate >120 mg/dl (1 = da, 0 = nu)
             restecg:
               type: integer
-              description: Rezultate ECG în repaus (0 = normal, 1 = anomalii ST-T, 2 = hipertrofie ventriculară)
+              description: Rezultate ECG în repaus (0 = normal, 1 = anomalie ST-T, 2 = hipertrofie ventriculară)
             thalach:
               type: integer
               description: Frecvența cardiacă maximă atinsă (bpm)
@@ -215,7 +215,7 @@ def predict_heart_disease():
             oldpeak:
               type: number
               format: float
-              description: Depresie ST indusă de efort relativ la repaus (mm)
+              description: Depresia ST indusă de efort relativ la repaus (mm)
             slope:
               type: integer
               description: Panta segmentului ST în efort (1 = ascendentă, 2 = plată, 3 = descendentă)
@@ -224,11 +224,11 @@ def predict_heart_disease():
               description: Numărul de vase principale colorate prin angiografie (0–3)
             thal:
               type: integer
-              description: Tipul thalassemiei (1 = normal, 2 = fix, 3 = reversibil)
+              description: Tipul thalassemiei (1 = normal, 2 = fixă, 3 = reversibilă)
             test_date:
               type: string
               format: date
-              description: Data la care se face predicția
+              description: Data efectuării predicției
     responses:
       200:
         description: Predicții pentru fiecare model de clasificare
@@ -238,19 +238,19 @@ def predict_heart_disease():
             tabpfn:
               type: integer
               enum: [0, 1]
-              description: Predicție TabPFN (0 = fără boală, 1 = boală)
+              description: Rezultatul modelului TabPFN (0 = fără boală, 1 = boală)
             xgb:
               type: integer
               enum: [0, 1]
-              description: Predicție XGBoost (0 = fără boală, 1 = boală)
+              description: Rezultatul modelului XGBoost (0 = fără boală, 1 = boală)
             lgb:
               type: integer
               enum: [0, 1]
-              description: Predicție LightGBM (0 = fără boală, 1 = boală)
+              description: Rezultatul modelului LightGBM (0 = fără boală, 1 = boală)
             risk:
               type: string
               enum: [low, medium, high]
-              description: Nivelul de risc agregat
+              description: Nivelul de risc agregat (low, medium, high)
     """
     # 1) check session
     token = request.headers.get('Authorization')

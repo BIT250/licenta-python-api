@@ -1,52 +1,133 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from 'recharts';
 import { User, Edit, History, BarChart3 } from 'lucide-react';
 
+const API_BASE = 'http://127.0.0.1:5000'
+
 const Profile = () => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [showDiabetes, setShowDiabetes] = useState(true);
+  const [showHeart, setShowHeart] = useState(true);
+  const [predictionHistory, setPredictionHistory] = useState([]);
+  const [sortField, setSortField] = useState('date_of_prediction');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [filterType, setFilterType] = useState('all');
+  const [filterRisk, setFilterRisk] = useState('all');
+  const [analyticsData, setAnalyticsData] = useState({
+    riskDistribution: [],
+    monthlyTrend: [],
+    latestAssessments: { diabetes: null, heart: null }
+  });
   const [userData, setUserData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    age: '35',
-    height: '180',
-    weight: '75',
-    phone: '+1234567890'
+    name: '',
+    email: '',
+    age: '',
+    height: '',
+    weight: '',
+    phone: '',
+    dob: '',
+    sex: ''
   });
 
-  // Mock prediction history data
-  const predictionHistory = [
-    { id: 1, date: '2024-01-15', type: 'Diabetes', result: 'Low Risk', confidence: '85%' },
-    { id: 2, date: '2024-01-10', type: 'Heart Disease', result: 'High Risk', confidence: '92%' },
-    { id: 3, date: '2024-01-05', type: 'Diabetes', result: 'Low Risk', confidence: '78%' },
-    { id: 4, date: '2023-12-28', type: 'Heart Disease', result: 'Low Risk', confidence: '88%' },
-  ];
+  // Fetch real personal data from the database
+  useEffect(() => {
+    const fetchPersonalData = async () => {
+      const token = localStorage.getItem('sessionToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      const res = await fetch(`${API_BASE}/db/personal_data`, {
+        headers: { Authorization: token || '' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserData(prev => ({
+          ...prev,
+          name: data.name,
+          email: data.email,
+          dob: data.birth_date,
+          sex: data.sex,
+          height: data.height,
+          weight: data.weight,
+          phone: data.phone
+        }));
+      }
+    };
+    fetchPersonalData();
+  }, []);
 
-  // Mock chart data with risk levels
-  const riskDistributionData = [
-    { risk: 'Low Risk', diabetes: 3, heart: 2, fill: '#22c55e' },
-    { risk: 'Average Risk', diabetes: 1, heart: 1, fill: '#f59e0b' },
-    { risk: 'High Risk', diabetes: 0, heart: 1, fill: '#ef4444' },
-  ];
+  // Fetch prediction history from the database
+  useEffect(() => {
+    const fetchPredictionHistory = async () => {
+      const token = localStorage.getItem('sessionToken');
+      if (!token) return;
 
-  const monthlyRiskData = [
-    { month: 'Jan', diabetes: 'Low Risk', heart: 'High Risk' },
-    { month: 'Feb', diabetes: 'Low Risk', heart: 'High Risk' },
-    { month: 'Mar', diabetes: 'Low Risk', heart: 'Average Risk' },
-    { month: 'Apr', diabetes: 'Average Risk', heart: 'Low Risk' },
-    { month: 'May', diabetes: 'Low Risk', heart: 'Average Risk' },
-    { month: 'Jun', diabetes: 'Low Risk', heart: 'Low Risk' },
-  ];
+      try {
+        const res = await fetch(`${API_BASE}/db/prediction_history`, {
+          headers: { Authorization: token || '' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPredictionHistory(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch prediction history:', error);
+      }
+    };
+    fetchPredictionHistory();
+  }, []);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Here you would typically save to your backend
+  // Fetch analytics data from the database
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      const token = localStorage.getItem('sessionToken');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/db/analytics_data`, {
+          headers: { Authorization: token || '' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAnalyticsData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch analytics data:', error);
+      }
+    };
+    fetchAnalyticsData();
+  }, []);
+
+  const handleSave = async () => {
+    const token = localStorage.getItem('sessionToken');
+    const payload = {
+      name: userData.name,
+      birth_date: userData.dob,
+      sex: userData.sex,
+      weight: userData.weight,
+      height: userData.height,
+      phone: userData.phone
+    };
+    const res = await fetch(`${API_BASE}/db/personal_data`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token || ''
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      setIsEditing(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -56,45 +137,100 @@ const Profile = () => {
     }));
   };
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const filteredAndSortedHistory = predictionHistory
+    .filter(prediction => {
+      const typeMatch = filterType === 'all' || prediction.type === filterType;
+      const riskMatch = filterRisk === 'all' || prediction.risk === filterRisk;
+      return typeMatch && riskMatch;
+    })
+    .sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      if (sortField === 'date_of_prediction') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'Low Risk': return '#22c55e';
-      case 'Average Risk': return '#f59e0b';
-      case 'High Risk': return '#ef4444';
+      case 'low': return '#22c55e';
+      case 'medium': return '#f59e0b';
+      case 'high': return '#ef4444';
       default: return '#6b7280';
     }
   };
 
-  const getRiskValue = (risk: string) => {
-    switch (risk) {
-      case 'Low Risk': return 1;
-      case 'Average Risk': return 2;
-      case 'High Risk': return 3;
-      default: return 0;
+  const formatRiskText = (risk: string | number) => {
+    let key = '';
+    if (typeof risk === 'string') {
+      const r = risk.toLowerCase();
+      key = r.includes('low') ? 'low'
+          : r.includes('medium') ? 'medium'
+          : r.includes('high') ? 'high'
+          : '';
+    } else {
+      key = risk === 1 ? 'low'
+          : risk === 2 ? 'medium'
+          : risk === 3 ? 'high'
+          : '';
     }
+    switch (key) {
+      case 'low': return 'Risc scăzut';
+      case 'medium': return 'Risc moderat';
+      case 'high': return 'Risc crescut';
+      default: return 'Necunoscut';
+    }
+  };
+
+  const getModelResult = (value: number) => {
+    return value === 1 ? 'Pozitiv' : 'Negativ';
+  };
+
+  const handleBackToPredictions = () => {
+    navigate('/');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">My Profile</h1>
-          <p className="text-gray-600">Manage your personal information and view your health predictions</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Profilul meu</h1>
+          <p className="text-gray-600">Gestionează-ți informațiile personale și vizualizează-ți predicțiile de sănătate</p>
+          <Button variant="outline" onClick={handleBackToPredictions}>
+            Înapoi la predicții
+          </Button>
         </div>
 
         <Tabs defaultValue="personal" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="personal" className="flex items-center gap-2">
               <User className="h-4 w-4" />
-              Personal Info
+              Informații personale
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
-              Prediction History
+              Istoric predicții
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              Analytics
+              Analiză
             </TabsTrigger>
           </TabsList>
 
@@ -102,23 +238,23 @@ const Profile = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  Personal Information
+                  Informații personale
                   <Button
                     variant="outline"
                     onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                   >
                     <Edit className="h-4 w-4 mr-2" />
-                    {isEditing ? 'Save' : 'Edit'}
+                    {isEditing ? 'Salvează' : 'Editează'}
                   </Button>
                 </CardTitle>
                 <CardDescription>
-                  Update your personal information and health details
+                  Actualizează informațiile personale și detaliile de sănătate
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name">Nume complet</Label>
                     <Input
                       id="name"
                       value={userData.name}
@@ -132,24 +268,13 @@ const Profile = () => {
                       id="email"
                       type="email"
                       value={userData.email}
-                      disabled={!isEditing}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      disabled
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="age">Age</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      value={userData.age}
-                      disabled={!isEditing}
-                      onChange={(e) => handleInputChange('age', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="height">Height (cm)</Label>
+                    <Label htmlFor="height">Înălțime (cm)</Label>
                     <Input
                       id="height"
                       type="number"
@@ -159,7 +284,7 @@ const Profile = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Label htmlFor="weight">Greutate (kg)</Label>
                     <Input
                       id="weight"
                       type="number"
@@ -168,15 +293,54 @@ const Profile = () => {
                       onChange={(e) => handleInputChange('weight', e.target.value)}
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="phone">Număr de telefon</Label>
+                    <Input
+                      id="phone"
+                      value={userData.phone}
+                      disabled={!isEditing}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={userData.phone}
-                    disabled={!isEditing}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="dob">Data nașterii</Label>
+                    <Input
+                      id="dob"
+                      type="date"
+                      value={userData.dob}
+                      disabled={!isEditing}
+                      onChange={(e) => handleInputChange('dob', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sex">Sex</Label>
+                    <div className="flex gap-4">
+                      <label>
+                        <input
+                          type="radio"
+                          name="sex"
+                          value={1}
+                          checked={userData.sex === 1}
+                          disabled={!isEditing}
+                          onChange={() => handleInputChange('sex', 1)}
+                        />
+                        <span className="ml-1">Masculin</span>
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="sex"
+                          value={0}
+                          checked={userData.sex === 0}
+                          disabled={!isEditing}
+                          onChange={() => handleInputChange('sex', 0)}
+                        />
+                        <span className="ml-1">Feminin</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -185,40 +349,111 @@ const Profile = () => {
           <TabsContent value="history">
             <Card>
               <CardHeader>
-                <CardTitle>Prediction History</CardTitle>
+                <CardTitle>Istoric predicții</CardTitle>
                 <CardDescription>
-                  View all your previous health risk assessments
+                  Vizualizează toate evaluările anterioare ale riscului pentru sănătate
                 </CardDescription>
+                <div className="flex gap-4 mt-4">
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="border rounded px-2 py-1"
+                  >
+                    <option value="all">Toate tipurile</option>
+                    <option value="Diabet">Diabet</option>
+                    <option value="Afecțiuni cardiace">Afecțiuni cardiace</option>
+                  </select>
+                  <select
+                    value={filterRisk}
+                    onChange={(e) => setFilterRisk(e.target.value)}
+                    className="border rounded px-2 py-1"
+                  >
+                    <option value="all">Toate nivelurile de risc</option>
+                    <option value="low">Risc scăzut</option>
+                    <option value="medium">Risc moderat</option>
+                    <option value="high">Risc crescut</option>
+                  </select>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Assessment Type</TableHead>
-                      <TableHead>Result</TableHead>
-                      <TableHead>Confidence</TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('date_of_prediction')}
+                      >
+                        Dată {sortField === 'date_of_prediction' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('type')}
+                      >
+                        Tip evaluare {sortField === 'type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('risk')}
+                      >
+                        Risc general {sortField === 'risk' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead>TabPFN</TableHead>
+                      <TableHead>XGBoost</TableHead>
+                      <TableHead>LightGBM</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {predictionHistory.map((prediction) => (
-                      <TableRow key={prediction.id}>
-                        <TableCell>{prediction.date}</TableCell>
+                    {filteredAndSortedHistory.map((prediction, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{prediction.date_of_prediction}</TableCell>
                         <TableCell>{prediction.type}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            prediction.result === 'Low Risk' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {prediction.result}
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium`}
+                            style={{
+                              backgroundColor: `${getRiskColor(prediction.risk)}20`,
+                              color: getRiskColor(prediction.risk)
+                            }}
+                          >
+                            {formatRiskText(prediction.risk)}
                           </span>
                         </TableCell>
-                        <TableCell>{prediction.confidence}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            prediction.tabpfn_response === 1
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {getModelResult(prediction.tabpfn_response)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            prediction.xgb_response === 1
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {getModelResult(prediction.xgb_response)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            prediction.lgbm_response === 1
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {getModelResult(prediction.lgbm_response)}
+                          </span>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                {filteredAndSortedHistory.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Nicio predicție nu corespunde filtrelor tale
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -227,26 +462,27 @@ const Profile = () => {
             <div className="grid gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Risk Level Distribution</CardTitle>
+                  <CardTitle>Distribuția nivelurilor de risc</CardTitle>
                   <CardDescription>
-                    Distribution of your risk assessments by category
+                    Distribuția evaluărilor tale de risc pe categorii
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={riskDistributionData}>
+                    <BarChart data={analyticsData.riskDistribution}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="risk" />
+                      <XAxis dataKey="risk" tickFormatter={formatRiskText} />
                       <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="diabetes" name="Diabetes Assessments">
-                        {riskDistributionData.map((entry, index) => (
-                          <Cell key={`diabetes-${index}`} fill={entry.fill} />
+                      <Tooltip labelFormatter={formatRiskText} />
+                      <Legend />
+                      <Bar dataKey="diabetes" name="Evaluări Diabet">
+                        {analyticsData.riskDistribution.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.fill} />
                         ))}
                       </Bar>
-                      <Bar dataKey="heart" name="Heart Disease Assessments">
-                        {riskDistributionData.map((entry, index) => (
-                          <Cell key={`heart-${index}`} fill={entry.fill} />
+                      <Bar dataKey="heart" name="Evaluări Afecțiuni Cardiace">
+                        {analyticsData.riskDistribution.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.fill} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -256,51 +492,74 @@ const Profile = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Risk Trend Over Time</CardTitle>
+                  <CardTitle>Evoluția riscului în timp</CardTitle>
                   <CardDescription>
-                    Track how your risk levels have changed over time
+                    Urmărește cum au evoluat nivelurile tale de risc de-a lungul timpului
                   </CardDescription>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showDiabetes}
+                        onChange={(e) => setShowDiabetes(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span className="text-sm" style={{ color: '#3b82f6' }}>Risc diabet</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showHeart}
+                        onChange={(e) => setShowHeart(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span className="text-sm" style={{ color: '#ef4444' }}>Risc afecțiuni cardiace</span>
+                    </label>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyRiskData}>
+                    <LineChart data={analyticsData.monthlyTrend}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis 
+                      <YAxis
                         domain={[0, 4]}
                         tickFormatter={(value) => {
                           switch (value) {
-                            case 1: return 'Low';
-                            case 2: return 'Average';
-                            case 3: return 'High';
+                            case 1: return 'Scăzut';
+                            case 2: return 'Moderat';
+                            case 3: return 'Crescut';
                             default: return '';
                           }
                         }}
+                        tick={{ fontSize: 12 }}
                       />
-                      <Tooltip 
-                        formatter={(value, name) => {
-                          const riskLevel = name === 'diabetes' ? 
-                            monthlyRiskData.find(d => d.month === value)?.diabetes :
-                            monthlyRiskData.find(d => d.month === value)?.heart;
-                          return [riskLevel, name === 'diabetes' ? 'Diabetes Risk' : 'Heart Disease Risk'];
-                        }}
+                      <Tooltip
+                          formatter={(value, name) => {
+                            const nivel = value === 1 ? 'Risc scăzut' : value === 2 ? 'Risc moderat' : value === 3 ? 'Risc crescut' : 'Necunoscut';
+                            return [nivel, name === 'diabet' ? 'Diabet' : 'Afecțiuni cardiace'];
+                          }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey={(data) => getRiskValue(data.diabetes)}
-                        stroke="#ef4444" 
-                        name="diabetes"
-                        strokeWidth={3}
-                        dot={{ fill: '#ef4444', strokeWidth: 2, r: 6 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey={(data) => getRiskValue(data.heart)}
-                        stroke="#3b82f6" 
-                        name="heart"
-                        strokeWidth={3}
-                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
-                      />
+                      {showDiabetes && (
+                        <Line
+                          type="monotone"
+                          dataKey="diabetes"
+                          stroke="#3b82f6"
+                          name="diabet"
+                          strokeWidth={3}
+                          dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
+                        />
+                      )}
+                      {showHeart && (
+                        <Line
+                          type="monotone"
+                          dataKey="heart"
+                          stroke="#ef4444"
+                          name="afecțiuni cardiace"
+                          strokeWidth={3}
+                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 6 }}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -309,43 +568,78 @@ const Profile = () => {
               <div className="grid md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Latest Assessment</CardTitle>
-                    <CardDescription>Your most recent risk assessments</CardDescription>
+                    <CardTitle>Ultima evaluare</CardTitle>
+                    <CardDescription>
+                      Cele mai recente evaluări de risc
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <span className="font-medium">Diabetes Risk</span>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                        Low Risk
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                      <span className="font-medium">Heart Disease Risk</span>
-                      <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                        High Risk
-                      </span>
-                    </div>
+                    {analyticsData.latestAssessments.diabetes ? (
+                      <div className={`flex justify-between items-center p-3 rounded-lg`}
+                           style={{ backgroundColor: `${getRiskColor(analyticsData.latestAssessments.diabetes)}20` }}>
+                        <span className="font-medium">Risc diabet</span>
+                        <span className="px-3 py-1 rounded-full text-sm font-medium"
+                              style={{
+                                backgroundColor: `${getRiskColor(analyticsData.latestAssessments.diabetes)}40`,
+                                color: getRiskColor(analyticsData.latestAssessments.diabetes)
+                              }}>
+                          {formatRiskText(analyticsData.latestAssessments.diabetes)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="font-medium">Risc diabet</span>
+                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+                          Fără date
+                        </span>
+                      </div>
+                    )}
+
+                    {analyticsData.latestAssessments.heart ? (
+                      <div className={`flex justify-between items-center p-3 rounded-lg`}
+                           style={{ backgroundColor: `${getRiskColor(analyticsData.latestAssessments.heart)}20` }}>
+                        <span className="font-medium">Risc afecțiuni cardiace</span>
+                        <span className="px-3 py-1 rounded-full text-sm font-medium"
+                              style={{
+                                backgroundColor: `${getRiskColor(analyticsData.latestAssessments.heart)}40`,
+                                color: getRiskColor(analyticsData.latestAssessments.heart)
+                              }}>
+                          {formatRiskText(analyticsData.latestAssessments.heart)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="font-medium">Risc afecțiuni cardiace</span>
+                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+                          Fără date
+                        </span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Assessment Summary</CardTitle>
-                    <CardDescription>Total assessments completed</CardDescription>
+                    <CardTitle>Rezumat evaluări</CardTitle>
+                    <CardDescription>Număr total de evaluări efectuate</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-blue-600">8</div>
-                      <div className="text-sm text-gray-600">Total Assessments</div>
+                      <div className="text-3xl font-bold text-blue-600">{predictionHistory.length}</div>
+                      <div className="text-sm text-gray-600">Total evaluări</div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <div className="text-center">
-                        <div className="text-xl font-semibold text-red-500">4</div>
-                        <div className="text-xs text-gray-600">Diabetes</div>
+                        <div className="text-xl font-semibold text-blue-500">
+                          {predictionHistory.filter(p => p.type === 'Diabet').length}
+                        </div>
+                        <div className="text-xs text-gray-600">Diabet</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xl font-semibold text-blue-500">4</div>
-                        <div className="text-xs text-gray-600">Heart Disease</div>
+                        <div className="text-xl font-semibold text-red-500">
+                          {predictionHistory.filter(p => p.type === 'Afecțiuni cardiace').length}
+                        </div>
+                        <div className="text-xs text-gray-600">Afecțiuni cardiace</div>
                       </div>
                     </div>
                   </CardContent>

@@ -55,3 +55,21 @@ def calculate_age_from_cnp(cnp, reference_date=None):
 		age -= 1
 
 	return age
+
+
+def calculate_pedigree_function(family_history):
+	"""
+	Calculates the Diabetes Pedigree Function based on family history.
+	Family history is severiyt of diabetes in family from 1 to 5, where 1 is no history and 5 is severe history.
+	Needs to be converted from 0.00 to 1.5 min and max
+	:param family_history:
+	:return:
+	"""
+	if not isinstance(family_history, (int, float)):
+		raise ValueError("Family history must be a numeric value.")
+
+	if family_history < 1 or family_history > 5:
+		raise ValueError("Family history must be between 1 and 5.")
+
+	pedigree_function = (family_history - 1) * (1.5 / 4)
+	return round(pedigree_function, 2)

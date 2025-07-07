@@ -10,3 +10,4 @@ xgboost
 flasgger
 lightgbm
 pandas
+flask_cors

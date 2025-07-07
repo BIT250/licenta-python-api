@@ -103,9 +103,9 @@ const DiabetesForm = () => {
         const data = await res.json();
         const risk = data.risk;
         const prediction =
-          risk === "high" ? "Diabet detectat"
-          : risk === "medium" ? "Risc moderat"
-          : "Fără risc de diabet";
+          risk === "high" ? "Risc ridicat de diabet"
+          : risk === "medium" ? "Risc moderat de diabet"
+          : "Risc scăzut de diabet";
         setResult(prediction);
         toast({
           title: "Predicție completă",

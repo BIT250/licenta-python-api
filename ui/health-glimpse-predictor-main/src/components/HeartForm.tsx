@@ -199,7 +199,7 @@ const HeartForm: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">≤ 120 mg/dl</SelectItem>
-              <SelectItem value="1">> 120 mg/dl</SelectItem>
+              <SelectItem value="1">&gt; 120 mg/dl</SelectItem>
             </SelectContent>
           </Select>
         </div>
